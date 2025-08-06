@@ -1,0 +1,18 @@
+# docker-compose.yml
+version: '3.8'
+networks:
+  appnet:
+    driver: bridge
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5001:5000"
+    networks:
+      - appnet
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - appnet
