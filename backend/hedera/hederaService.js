@@ -1,17 +1,138 @@
-const { Client, FileCreateTransaction, Hbar, PrivateKey } = require("@hashgraph/sdk");
-const client = Client.forTestnet();
+const {
+    Client,
+    PrivateKey,
+    AccountCreateTransaction,
+    AccountBalanceQuery,
+    TransferTransaction,
+    Hbar,
+    TopicCreateTransaction,
+    TopicMessageSubmitTransaction,
+    TopicInfoQuery
+} = require("@hashgraph/sdk");
 
-// Clés Hedera directement dans le code
-const accountId = "0.0.6472099";
-const privateKey = PrivateKey.fromString("3030020100300706052b8104000a0422042093aa81b894242776c12ca5f447ee245f80ce2e9a2a257e70a4dc90526ad9bf0b");
+require('dotenv').config();
 
-client.setOperator(accountId, privateKey);
+class HederaService {
+    constructor() {
+        this.client = null;
+        this.operatorId = process.env.HEDERA_OPERATOR_ID;
+        this.operatorKey = process.env.HEDERA_OPERATOR_KEY;
+        this.auditTopicId = process.env.AUDIT_TOPIC_ID;
+        this.init();
+    }
 
-exports.logPrescriptionOnChain = async (data) => {
-  const tx = await new FileCreateTransaction()
-    .setContents(JSON.stringify(data))
-    .setMaxTransactionFee(new Hbar(2))
-    .execute(client);
-  const receipt = await tx.getReceipt(client);
-  return receipt.fileId.toString();
-};
+    async init() {
+        try {
+            if (!this.operatorId || !this.operatorKey) {
+                console.warn("Hedera credentials not found, using mock mode");
+                return;
+            }
+
+            this.client = Client.forTestnet();
+            this.client.setOperator(this.operatorId, this.operatorKey);
+            console.log("✅ Hedera client initialized successfully");
+        } catch (error) {
+            console.error("❌ Failed to initialize Hedera client:", error.message);
+        }
+    }
+
+    async createAccount() {
+        try {
+            if (!this.client) {
+                return this.mockCreateAccount();
+            }
+
+            const newAccountPrivateKey = PrivateKey.generateED25519();
+            const newAccountPublicKey = newAccountPrivateKey.publicKey;
+
+            const newAccount = await new AccountCreateTransaction()
+                .setKey(newAccountPublicKey)
+                .setInitialBalance(Hbar.fromTinybars(1000))
+                .execute(this.client);
+
+            const getReceipt = await newAccount.getReceipt(this.client);
+            const newAccountId = getReceipt.accountId;
+
+            return {
+                accountId: newAccountId.toString(),
+                privateKey: newAccountPrivateKey.toString(),
+                publicKey: newAccountPublicKey.toString()
+            };
+        } catch (error) {
+            console.error("Error creating Hedera account:", error);
+            return this.mockCreateAccount();
+        }
+    }
+
+    mockCreateAccount() {
+        const mockAccountId = `0.0.${Math.floor(Math.random() * 1000000)}`;
+        const mockPrivateKey = `302e020100300506032b657004220420${Math.random().toString(16).substring(2, 66)}`;
+        const mockPublicKey = `302a300506032b6570032100${Math.random().toString(16).substring(2, 66)}`;
+        
+        return {
+            accountId: mockAccountId,
+            privateKey: mockPrivateKey,
+            publicKey: mockPublicKey
+        };
+    }
+
+    async submitAuditLog(action, userId, data) {
+        try {
+            const auditData = {
+                timestamp: new Date().toISOString(),
+                action,
+                userId,
+                data,
+                hash: this.generateHash(JSON.stringify({ action, userId, data }))
+            };
+
+            if (!this.client || !this.auditTopicId) {
+                console.log("📝 Mock Audit Log:", auditData);
+                return { success: true, transactionId: `mock-${Date.now()}` };
+            }
+
+            const submitTx = await new TopicMessageSubmitTransaction()
+                .setTopicId(this.auditTopicId)
+                .setMessage(JSON.stringify(auditData))
+                .execute(this.client);
+
+            const receipt = await submitTx.getReceipt(this.client);
+            
+            return {
+                success: true,
+                transactionId: submitTx.transactionId.toString(),
+                sequenceNumber: receipt.topicSequenceNumber
+            };
+        } catch (error) {
+            console.error("Error submitting audit log:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    generateHash(data) {
+        const crypto = require('crypto');
+        return crypto.createHash('sha256').update(data).digest('hex');
+    }
+
+    async getAccountBalance(accountId) {
+        try {
+            if (!this.client) {
+                return { balance: "100.00", currency: "HBAR" };
+            }
+
+            const balance = await new AccountBalanceQuery()
+                .setAccountId(accountId)
+                .execute(this.client);
+
+            return {
+                balance: balance.hbars.toString(),
+                currency: "HBAR"
+            };
+        } catch (error) {
+            console.error("Error getting account balance:", error);
+            return { balance: "0.00", currency: "HBAR" };
+        }
+    }
+}
+
+module.exports = new HederaService();

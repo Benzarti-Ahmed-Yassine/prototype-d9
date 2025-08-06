@@ -1,23 +1,59 @@
-const mongoose = require("mongoose");
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('./database');
 
-const userSchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
-  password: String,
-  role: { type: String, enum: ["hospital", "pharmacy", "delivery", "patient"] }
+const User = sequelize.define('User', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+        validate: {
+            isEmail: true
+        }
+    },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    role: {
+        type: DataTypes.ENUM('doctor', 'pharmacist', 'driver', 'patient', 'admin'),
+        allowNull: false
+    },
+    name: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    hederaAccountId: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    hederaPrivateKey: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    hederaPublicKey: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    additionalData: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    isActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
+    },
+    lastLogin: {
+        type: DataTypes.DATE,
+        allowNull: true
+    }
+}, {
+    tableName: 'users',
+    timestamps: true
 });
 
-module.exports = mongoose.model("User", userSchema);
-
-// backend/models/Prescription.js
-const { Schema, model } = require("mongoose");
-
-const prescriptionSchema = new Schema({
-  patientName: String,
-  medication: String,
-  status: { type: String, enum: ["prescribed", "validated", "delivered"], default: "prescribed" },
-  createdBy: { type: Schema.Types.ObjectId, ref: "User" },
-  blockchainRef: String
-}, { timestamps: true });
-
-module.exports = model("Prescription", prescriptionSchema);
+module.exports = { User };
