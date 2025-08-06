@@ -1,102 +1,84 @@
-const API_BASE_URL = (typeof window !== 'undefined' && window.location.origin.includes('localhost:3000')) 
-    ? 'http://localhost:5000/api' 
-    : (import.meta?.env?.VITE_API_URL || 'http://localhost:5000/api');
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-mediflow-app.vercel.app/api'
+  : 'http://localhost:5000/api';
 
 class ApiService {
-    constructor() {
-        this.baseURL = API_BASE_URL;
+  constructor() {
+    this.baseURL = API_BASE_URL;
+  }
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    const token = localStorage.getItem('token');
+    
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
     }
+  }
 
-    getAuthHeader() {
-        const token = localStorage.getItem('token');
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    }
+  // Auth methods
+  async login(email, password) {
+    return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
 
-    async request(endpoint, options = {}) {
-        const url = `${this.baseURL}${endpoint}`;
-        const config = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...this.getAuthHeader(),
-                ...options.headers,
-            },
-            ...options,
-        };
+  async register(userData) {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
 
-        try {
-            const response = await fetch(url, config);
-            const data = await response.json();
+  // Prescription methods
+  async getPrescriptions() {
+    return this.request('/prescriptions');
+  }
 
-            if (!response.ok) {
-                throw new Error(data.message || 'Une erreur est survenue');
-            }
+  async createPrescription(prescriptionData) {
+    return this.request('/prescriptions', {
+      method: 'POST',
+      body: JSON.stringify(prescriptionData),
+    });
+  }
 
-            return data;
-        } catch (error) {
-            console.error('API Error:', error);
-            throw error;
-        }
-    }
+  async updatePrescription(id, prescriptionData) {
+    return this.request(`/prescriptions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(prescriptionData),
+    });
+  }
 
-    // Auth endpoints
-    async login(credentials) {
-        return this.request('/auth/login', {
-            method: 'POST',
-            body: JSON.stringify(credentials),
-        });
-    }
+  async deletePrescription(id) {
+    return this.request(`/prescriptions/${id}`, {
+      method: 'DELETE',
+    });
+  }
 
-    async register(userData) {
-        return this.request('/auth/register', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-        });
-    }
-
-    async getProfile() {
-        return this.request('/auth/profile');
-    }
-
-    async logout() {
-        return this.request('/auth/logout', {
-            method: 'POST',
-        });
-    }
-
-    // Prescription endpoints
-    async getPrescriptions(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.request(`/prescriptions${queryString ? `?${queryString}` : ''}`);
-    }
-
-    async getPrescription(id) {
-        return this.request(`/prescriptions/${id}`);
-    }
-
-    async createPrescription(prescriptionData) {
-        return this.request('/prescriptions', {
-            method: 'POST',
-            body: JSON.stringify(prescriptionData),
-        });
-    }
-
-    async updatePrescription(id, prescriptionData) {
-        return this.request(`/prescriptions/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(prescriptionData),
-        });
-    }
-
-    async deletePrescription(id) {
-        return this.request(`/prescriptions/${id}`, {
-            method: 'DELETE',
-        });
-    }
-
-    // Health check
-    async healthCheck() {
-        return this.request('/health');
-    }
+  // Health check
+  async healthCheck() {
+    return this.request('/health');
+  }
 }
 
 export default new ApiService();

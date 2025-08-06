@@ -1,4 +1,32 @@
 {
+  "name": "mediflow-platform",
+  "version": "1.0.0",
+  "description": "Plateforme numérique de gestion des médicaments avec blockchain Hedera",
+  "keywords": [
+    "healthcare",
+    "blockchain",
+    "hedera",
+    "prescriptions",
+    "medical",
+    "digital-health"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/mediflow-platform.git"
+  },
+  "license": "MIT",
+  "author": "MediFlow Team",
+  "main": "api/index.js",
+  "scripts": {
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "start": "node api/index.js",
+    "vercel-build": "cd frontend && npm install && npm run build"
+  },
   "dependencies": {
     "@hashgraph/sdk": "latest",
     "@testing-library/dom": "latest",
@@ -12,12 +40,14 @@
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
+    "geist": "latest",
     "jiti": "latest",
     "jsonwebtoken": "latest",
     "less": "latest",
     "lightningcss": "latest",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
+    "next-themes": "latest",
     "path": "latest",
     "react": "^19",
     "react-dom": "^19",
@@ -25,7 +55,7 @@
     "sass": "latest",
     "sass-embedded": "latest",
     "sequelize": "latest",
-    "sqlite3": "^5.1.7",
+    "sqlite3": "^5.1.6",
     "stylus": "latest",
     "sugarss": "latest",
     "tailwind-merge": "^2.5.5",
@@ -41,7 +71,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2",
     "postcss": "^8.5",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

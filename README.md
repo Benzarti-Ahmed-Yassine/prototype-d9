@@ -1,32 +1,31 @@
 # MediFlow - Plateforme de Gestion Numérique des Médicaments
 
-MediFlow est une plateforme complète de gestion des médicaments utilisant la blockchain Hedera pour l'audit et la sécurité. Elle permet aux médecins, pharmaciens, livreurs et patients de gérer efficacement les prescriptions médicales.
+MediFlow est une plateforme sécurisée de gestion des prescriptions médicales utilisant la blockchain Hedera pour l'audit et la traçabilité.
 
 ## 🚀 Fonctionnalités
 
-- **🔐 Authentification sécurisée** avec JWT
-- **🛡️ Audit blockchain** avec Hedera Hashgraph
-- **👥 Gestion des rôles** (Médecin, Pharmacien, Livreur, Patient, Admin)
-- **📋 Gestion des prescriptions** complète
-- **📱 Interface responsive** moderne
-- **🔄 API REST** complète
-- **🗄️ Base de données** SQLite avec Sequelize
+- **Authentification sécurisée** avec JWT
+- **Gestion des prescriptions** complète (CRUD)
+- **Audit blockchain** avec Hedera Hashgraph
+- **Interface moderne** avec React et Tailwind CSS
+- **Base de données** SQLite avec Sequelize ORM
+- **Rôles utilisateurs** : Médecin, Pharmacien, Livreur, Patient, Admin
+- **API REST** complète et documentée
 
-## 🏗️ Architecture
+## 🛠️ Technologies
 
 ### Backend
 - **Node.js** avec Express.js
 - **SQLite** avec Sequelize ORM
 - **JWT** pour l'authentification
-- **Hedera SDK** pour l'audit blockchain
+- **Hedera SDK** pour la blockchain
 - **bcryptjs** pour le hachage des mots de passe
 
 ### Frontend
 - **React 18** avec Vite
 - **React Router** pour la navigation
 - **Tailwind CSS** pour le styling
-- **Axios** pour les appels API
-- **Context API** pour la gestion d'état
+- **Axios** pour les requêtes API
 
 ## 📦 Installation
 
@@ -34,83 +33,120 @@ MediFlow est une plateforme complète de gestion des médicaments utilisant la b
 - Node.js 16+ 
 - npm ou yarn
 
-### 1. Cloner le repository
+### 1. Cloner le projet
 \`\`\`bash
 git clone <repository-url>
 cd mediflow
 \`\`\`
 
-### 2. Installation du Backend
+### 2. Installation Backend
 \`\`\`bash
 cd backend
 npm install
-cp .env.example .env
-# Configurer les variables d'environnement dans .env
-npm start
 \`\`\`
 
-### 3. Installation du Frontend
-\`\`\`bash
-cd frontend
-npm install
-npm run dev
-\`\`\`
-
-## 🔧 Configuration
-
-### Variables d'environnement Backend (.env)
+### 3. Configuration Backend
+Créer un fichier `.env` dans le dossier `backend` :
 \`\`\`env
 NODE_ENV=development
 PORT=5000
 FRONTEND_URL=http://localhost:5173
-JWT_SECRET=your-super-secret-jwt-key
-HEDERA_OPERATOR_ID=0.0.YOUR_ACCOUNT_ID
-HEDERA_OPERATOR_KEY=your-private-key
-AUDIT_TOPIC_ID=0.0.YOUR_TOPIC_ID
+JWT_SECRET=mediflow-secret-key-2024-super-secure
+
+# Hedera (optionnel - fonctionne en mode démo sans ces clés)
+HEDERA_OPERATOR_ID=0.0.123456
+HEDERA_OPERATOR_KEY=302e020100300506032b657004220420...
+AUDIT_TOPIC_ID=0.0.123457
 \`\`\`
 
-### Variables d'environnement Frontend
-\`\`\`env
-VITE_API_URL=http://localhost:5000/api
+### 4. Installation Frontend
+\`\`\`bash
+cd frontend
+npm install
 \`\`\`
 
-## 🎯 Utilisation
+## 🚀 Lancement
 
-### Comptes de démonstration
-- **Médecin**: `doctor@hospital.com` / `demo123`
-- **Pharmacien**: `pharmacist@pharmacy.com` / `demo123`
-- **Livreur**: `driver@delivery.com` / `demo123`
-- **Patient**: `patient@email.com` / `demo123`
-- **Admin**: `admin@mediflow.com` / `demo123`
+### Backend (Terminal 1)
+\`\`\`bash
+cd backend
+npm start
+\`\`\`
+Le serveur démarre sur http://localhost:5000
 
-### URLs d'accès
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:5000
-- **Health Check**: http://localhost:5000/api/health
+### Frontend (Terminal 2)
+\`\`\`bash
+cd frontend
+npm run dev
+\`\`\`
+L'application démarre sur http://localhost:5173
 
-## 🔗 API Endpoints
+## 👥 Comptes de Démonstration
+
+| Rôle | Email | Mot de passe |
+|------|-------|--------------|
+| Médecin | doctor@hospital.com | demo123 |
+| Pharmacien | pharmacist@pharmacy.com | demo123 |
+| Livreur | driver@delivery.com | demo123 |
+| Patient | patient@email.com | demo123 |
+| Admin | admin@mediflow.com | demo123 |
+
+## 📚 API Endpoints
 
 ### Authentification
-- `POST /api/auth/register` - Inscription
 - `POST /api/auth/login` - Connexion
+- `POST /api/auth/register` - Inscription
 - `GET /api/auth/profile` - Profil utilisateur
 - `POST /api/auth/logout` - Déconnexion
 
 ### Prescriptions
 - `GET /api/prescriptions` - Liste des prescriptions
-- `POST /api/prescriptions` - Créer une prescription
 - `GET /api/prescriptions/:id` - Détails d'une prescription
+- `POST /api/prescriptions` - Créer une prescription
 - `PUT /api/prescriptions/:id` - Modifier une prescription
 - `DELETE /api/prescriptions/:id` - Supprimer une prescription
 
+### Santé
+- `GET /api/health` - Vérification de l'état du serveur
+
+## 🔐 Sécurité
+
+- **Authentification JWT** avec expiration
+- **Hachage des mots de passe** avec bcrypt
+- **Validation des données** côté serveur
+- **Audit blockchain** avec Hedera
+- **Gestion des rôles** et permissions
+
+## 🏗️ Architecture
+
+\`\`\`
+mediflow/
+├── backend/
+│   ├── controllers/     # Logique métier
+│   ├── models/         # Modèles de données
+│   ├── routes/         # Routes API
+│   ├── services/       # Services (auth, etc.)
+│   ├── hedera/         # Intégration Hedera
+│   └── index.js        # Point d'entrée
+├── frontend/
+│   ├── src/
+│   │   ├── components/ # Composants React
+│   │   ├── pages/      # Pages de l'application
+│   │   ├── contexts/   # Contextes React
+│   │   ├── services/   # Services API
+│   │   └── App.jsx     # Composant principal
+│   └── public/         # Fichiers statiques
+└── README.md
+\`\`\`
+
 ## 🐳 Docker
 
-### Démarrage avec Docker Compose
+### Lancement avec Docker Compose
 \`\`\`bash
 docker-compose up -d
 \`\`\`
 
-### Build des images individuelles
+### Build manuel
 \`\`\`bash
 # Backend
 cd backend
@@ -135,63 +171,21 @@ cd frontend
 npm test
 \`\`\`
 
-## 🔒 Sécurité
+## 📈 Développement
 
-- **JWT** pour l'authentification
-- **bcrypt** pour le hachage des mots de passe
-- **Helmet** pour la sécurité des headers HTTP
-- **Rate limiting** pour prévenir les attaques
-- **Validation** des données d'entrée
-- **Audit blockchain** avec Hedera
+### Scripts disponibles
 
-## 🌐 Blockchain Hedera
+#### Backend
+- `npm start` - Démarrage production
+- `npm run dev` - Démarrage développement avec nodemon
+- `npm test` - Lancement des tests
+- `npm run lint` - Vérification du code
 
-MediFlow utilise Hedera Hashgraph pour:
-- **Audit des actions** (création, modification de prescriptions)
-- **Traçabilité** des opérations
-- **Immutabilité** des logs
-- **Transparence** des processus
-
-## 📱 Rôles et Permissions
-
-### Médecin
-- Créer des prescriptions
-- Modifier ses prescriptions
-- Voir ses prescriptions
-
-### Pharmacien
-- Voir toutes les prescriptions
-- Valider les prescriptions
-- Préparer les médicaments
-
-### Livreur
-- Voir les prescriptions à livrer
-- Mettre à jour le statut de livraison
-
-### Patient
-- Voir ses prescriptions
-- Suivre le statut de ses médicaments
-
-### Admin
-- Accès complet à toutes les fonctionnalités
-- Gestion des utilisateurs
-- Statistiques et rapports
-
-## 🚀 Déploiement
-
-### Production
-1. Configurer les variables d'environnement de production
-2. Build du frontend: `npm run build`
-3. Démarrer le backend: `npm start`
-4. Servir le frontend avec nginx ou un CDN
-
-### Variables d'environnement de production
-\`\`\`env
-NODE_ENV=production
-JWT_SECRET=complex-production-secret
-HEDERA_OPERATOR_ID=production-account-id
-HEDERA_OPERATOR_KEY=production-private-key
-\`\`\`
+#### Frontend
+- `npm run dev` - Serveur de développement
+- `npm run build` - Build de production
+- `npm run preview` - Aperçu du build
+- `npm run lint` - Vérification du code
 
 ## 🤝 Contribution
 
@@ -201,23 +195,25 @@ HEDERA_OPERATOR_KEY=production-private-key
 4. Push vers la branche (`git push origin feature/AmazingFeature`)
 5. Ouvrir une Pull Request
 
-## 📄 License
+## 📄 Licence
 
 Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ## 📞 Support
 
-Pour toute question ou support:
-- Email: support@mediflow.com
-- Documentation: [docs.mediflow.com](https://docs.mediflow.com)
-- Issues: [GitHub Issues](https://github.com/mediflow/issues)
+Pour toute question ou problème :
+- Créer une issue sur GitHub
+- Contacter l'équipe de développement
 
-## 🙏 Remerciements
+## 🔄 Changelog
 
-- [Hedera Hashgraph](https://hedera.com) pour la technologie blockchain
-- [React](https://reactjs.org) pour le framework frontend
-- [Express.js](https://expressjs.com) pour le framework backend
-- [Tailwind CSS](https://tailwindcss.com) pour le styling
+### Version 1.0.0
+- Authentification JWT complète
+- CRUD prescriptions
+- Intégration Hedera pour l'audit
+- Interface utilisateur moderne
+- Gestion des rôles utilisateurs
+- API REST documentée
 
 ---
 
