@@ -5,6 +5,7 @@
     "@hashgraph/sdk": "latest",
     "@mui/material": "latest",
     "@mui/material-pigment-css": "latest",
+    "@tailwindcss/postcss": "^4.1.11",
     "@testing-library/dom": "latest",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
