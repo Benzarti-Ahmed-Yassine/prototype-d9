@@ -1,22 +1,10 @@
 {
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
   "dependencies": {
-    "@emotion/react": "latest",
-    "@emotion/styled": "latest",
     "@hashgraph/sdk": "latest",
-    "@mui/material": "latest",
-    "@mui/material-pigment-css": "latest",
-    "@tailwindcss/postcss": "^4.1.11",
     "@testing-library/dom": "latest",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
     "@types/node": "latest",
-    "axios": "latest",
     "bcryptjs": "latest",
     "bn.js": "latest",
     "class-variance-authority": "^0.7.1",

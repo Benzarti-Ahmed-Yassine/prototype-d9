@@ -1,16 +1,17 @@
-const express = require("express");
-const router = express.Router();
-const {
-  createPrescription,
-  getPrescriptions,
-  updatePrescription,
-  deletePrescription
-} = require("../controllers/prescriptionController");
-const { verifyToken } = require("../services/authMiddleware");
+const express = require('express');
+const prescriptionController = require('../controllers/prescriptionController');
+const { authMiddleware, requireRole } = require('../services/authMiddleware');
 
-router.post("/", verifyToken, createPrescription);
-router.get("/", verifyToken, getPrescriptions);
-router.put("/:id", verifyToken, updatePrescription);
-router.delete("/:id", verifyToken, deletePrescription);
+const router = express.Router();
+
+// Toutes les routes nécessitent une authentification
+router.use(authMiddleware);
+
+// Routes pour les prescriptions
+router.get('/', prescriptionController.getAll);
+router.get('/:id', prescriptionController.getById);
+router.post('/', requireRole(['doctor', 'admin']), prescriptionController.create);
+router.put('/:id', requireRole(['doctor', 'admin']), prescriptionController.update);
+router.delete('/:id', requireRole(['doctor', 'admin']), prescriptionController.delete);
 
 module.exports = router;

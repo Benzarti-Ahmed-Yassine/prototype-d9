@@ -1,16 +1,4 @@
-const {
-    Client,
-    PrivateKey,
-    AccountCreateTransaction,
-    AccountBalanceQuery,
-    TransferTransaction,
-    Hbar,
-    TopicCreateTransaction,
-    TopicMessageSubmitTransaction,
-    TopicInfoQuery
-} = require("@hashgraph/sdk");
-
-require('dotenv').config();
+const { Client, PrivateKey, TopicCreateTransaction, TopicMessageSubmitTransaction, TopicId } = require("@hashgraph/sdk");
 
 class HederaService {
     constructor() {
@@ -18,93 +6,74 @@ class HederaService {
         this.operatorId = process.env.HEDERA_OPERATOR_ID;
         this.operatorKey = process.env.HEDERA_OPERATOR_KEY;
         this.auditTopicId = process.env.AUDIT_TOPIC_ID;
-        this.init();
+        this.initialized = false;
     }
 
-    async init() {
+    async initialize() {
         try {
             if (!this.operatorId || !this.operatorKey) {
-                console.warn("Hedera credentials not found, using mock mode");
+                console.warn("⚠️ Hedera credentials not found, running in demo mode");
+                this.initialized = false;
                 return;
             }
 
             this.client = Client.forTestnet();
-            this.client.setOperator(this.operatorId, this.operatorKey);
+            this.client.setOperator(this.operatorId, PrivateKey.fromString(this.operatorKey));
+            
             console.log("✅ Hedera client initialized successfully");
+            this.initialized = true;
         } catch (error) {
             console.error("❌ Failed to initialize Hedera client:", error.message);
+            this.initialized = false;
         }
     }
 
-    async createAccount() {
+    async createAuditTopic() {
+        if (!this.initialized) {
+            console.log("📝 Demo mode: Audit topic creation simulated");
+            return "0.0.demo";
+        }
+
         try {
-            if (!this.client) {
-                return this.mockCreateAccount();
-            }
-
-            const newAccountPrivateKey = PrivateKey.generateED25519();
-            const newAccountPublicKey = newAccountPrivateKey.publicKey;
-
-            const newAccount = await new AccountCreateTransaction()
-                .setKey(newAccountPublicKey)
-                .setInitialBalance(Hbar.fromTinybars(1000))
-                .execute(this.client);
-
-            const getReceipt = await newAccount.getReceipt(this.client);
-            const newAccountId = getReceipt.accountId;
-
-            return {
-                accountId: newAccountId.toString(),
-                privateKey: newAccountPrivateKey.toString(),
-                publicKey: newAccountPublicKey.toString()
-            };
+            const transaction = new TopicCreateTransaction()
+                .setTopicMemo("MediFlow Audit Trail");
+            
+            const response = await transaction.execute(this.client);
+            const receipt = await response.getReceipt(this.client);
+            
+            console.log("✅ Audit topic created:", receipt.topicId.toString());
+            return receipt.topicId.toString();
         } catch (error) {
-            console.error("Error creating Hedera account:", error);
-            return this.mockCreateAccount();
+            console.error("❌ Failed to create audit topic:", error.message);
+            throw error;
         }
     }
 
-    mockCreateAccount() {
-        const mockAccountId = `0.0.${Math.floor(Math.random() * 1000000)}`;
-        const mockPrivateKey = `302e020100300506032b657004220420${Math.random().toString(16).substring(2, 66)}`;
-        const mockPublicKey = `302a300506032b6570032100${Math.random().toString(16).substring(2, 66)}`;
-        
-        return {
-            accountId: mockAccountId,
-            privateKey: mockPrivateKey,
-            publicKey: mockPublicKey
-        };
-    }
+    async submitAuditLog(action, data) {
+        if (!this.initialized) {
+            console.log("📝 Demo mode: Audit log simulated -", action, JSON.stringify(data));
+            return { success: true, demo: true };
+        }
 
-    async submitAuditLog(action, userId, data) {
         try {
             const auditData = {
                 timestamp: new Date().toISOString(),
-                action,
-                userId,
-                data,
-                hash: this.generateHash(JSON.stringify({ action, userId, data }))
+                action: action,
+                data: data,
+                hash: this.generateHash(JSON.stringify(data))
             };
 
-            if (!this.client || !this.auditTopicId) {
-                console.log("📝 Mock Audit Log:", auditData);
-                return { success: true, transactionId: `mock-${Date.now()}` };
-            }
+            const transaction = new TopicMessageSubmitTransaction()
+                .setTopicId(TopicId.fromString(this.auditTopicId))
+                .setMessage(JSON.stringify(auditData));
 
-            const submitTx = await new TopicMessageSubmitTransaction()
-                .setTopicId(this.auditTopicId)
-                .setMessage(JSON.stringify(auditData))
-                .execute(this.client);
+            const response = await transaction.execute(this.client);
+            const receipt = await response.getReceipt(this.client);
 
-            const receipt = await submitTx.getReceipt(this.client);
-            
-            return {
-                success: true,
-                transactionId: submitTx.transactionId.toString(),
-                sequenceNumber: receipt.topicSequenceNumber
-            };
+            console.log("✅ Audit log submitted to Hedera:", receipt.status.toString());
+            return { success: true, transactionId: response.transactionId.toString() };
         } catch (error) {
-            console.error("Error submitting audit log:", error);
+            console.error("❌ Failed to submit audit log:", error.message);
             return { success: false, error: error.message };
         }
     }
@@ -114,24 +83,30 @@ class HederaService {
         return crypto.createHash('sha256').update(data).digest('hex');
     }
 
-    async getAccountBalance(accountId) {
-        try {
-            if (!this.client) {
-                return { balance: "100.00", currency: "HBAR" };
-            }
+    async logPrescriptionCreated(prescription) {
+        return await this.submitAuditLog('PRESCRIPTION_CREATED', {
+            prescriptionId: prescription.id,
+            doctorId: prescription.doctorId,
+            patientName: prescription.patientName,
+            medication: prescription.medication
+        });
+    }
 
-            const balance = await new AccountBalanceQuery()
-                .setAccountId(accountId)
-                .execute(this.client);
+    async logPrescriptionUpdated(prescription) {
+        return await this.submitAuditLog('PRESCRIPTION_UPDATED', {
+            prescriptionId: prescription.id,
+            updatedBy: prescription.updatedBy,
+            changes: prescription.changes
+        });
+    }
 
-            return {
-                balance: balance.hbars.toString(),
-                currency: "HBAR"
-            };
-        } catch (error) {
-            console.error("Error getting account balance:", error);
-            return { balance: "0.00", currency: "HBAR" };
-        }
+    async logUserLogin(user) {
+        return await this.submitAuditLog('USER_LOGIN', {
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+            loginTime: new Date().toISOString()
+        });
     }
 }
 

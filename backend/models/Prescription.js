@@ -1,33 +1,90 @@
-const { Sequelize, DataTypes } = require('sequelize');
+const { DataTypes } = require('sequelize');
 
-// Connexion à SQLite
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: './prescriptions.sqlite'
-});
+module.exports = (sequelize) => {
+    const Prescription = sequelize.define('Prescription', {
+        id: {
+            type: DataTypes.INTEGER,
+            primaryKey: true,
+            autoIncrement: true
+        },
+        doctorId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'users',
+                key: 'id'
+            }
+        },
+        patientName: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        patientAge: {
+            type: DataTypes.INTEGER,
+            allowNull: false
+        },
+        medication: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        dosage: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        frequency: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        duration: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        instructions: {
+            type: DataTypes.TEXT
+        },
+        status: {
+            type: DataTypes.ENUM('pending', 'approved', 'dispensed', 'delivered', 'completed'),
+            defaultValue: 'pending'
+        },
+        prescriptionDate: {
+            type: DataTypes.DATE,
+            defaultValue: DataTypes.NOW
+        },
+        expiryDate: {
+            type: DataTypes.DATE
+        },
+        pharmacistId: {
+            type: DataTypes.INTEGER,
+            references: {
+                model: 'users',
+                key: 'id'
+            }
+        },
+        driverId: {
+            type: DataTypes.INTEGER,
+            references: {
+                model: 'users',
+                key: 'id'
+            }
+        },
+        deliveryAddress: {
+            type: DataTypes.TEXT
+        },
+        notes: {
+            type: DataTypes.TEXT
+        },
+        createdAt: {
+            type: DataTypes.DATE,
+            defaultValue: DataTypes.NOW
+        },
+        updatedAt: {
+            type: DataTypes.DATE,
+            defaultValue: DataTypes.NOW
+        }
+    }, {
+        tableName: 'prescriptions',
+        timestamps: true
+    });
 
-// Modèle Prescription
-const Prescription = sequelize.define('Prescription', {
-  patientName: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  medication: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  status: {
-    type: DataTypes.ENUM('prescribed', 'validated', 'delivered'),
-    defaultValue: 'prescribed'
-  },
-  createdBy: {
-    type: DataTypes.INTEGER // à adapter si vous avez une table User
-  },
-  blockchainRef: {
-    type: DataTypes.STRING
-  }
-}, {
-  timestamps: true
-});
-
-module.exports = { sequelize, Prescription };
+    return Prescription;
+};

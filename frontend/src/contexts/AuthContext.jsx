@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/api';
+import apiService from '../services/api';
 
 const AuthContext = createContext();
 
@@ -17,95 +17,70 @@ export const AuthProvider = ({ children }) => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        initializeAuth();
+        checkAuthStatus();
     }, []);
 
-    const initializeAuth = async () => {
+    const checkAuthStatus = async () => {
         try {
-            const token = authService.getToken();
-            const savedUser = authService.getCurrentUser();
-
-            if (token && savedUser) {
-                // Vérifier si le token est toujours valide
-                try {
-                    const profileResponse = await authService.getProfile();
-                    if (profileResponse.success) {
-                        setUser(profileResponse.data.user);
-                    } else {
-                        // Token invalide, nettoyer le stockage
-                        await authService.logout();
-                        setUser(null);
-                    }
-                } catch (error) {
-                    // Erreur de vérification, nettoyer le stockage
-                    await authService.logout();
-                    setUser(null);
+            const token = localStorage.getItem('token');
+            if (token) {
+                const response = await apiService.getProfile();
+                if (response.success) {
+                    setUser(response.user);
+                } else {
+                    localStorage.removeItem('token');
                 }
             }
         } catch (error) {
-            console.error('Error initializing auth:', error);
-            setError('Erreur d\'initialisation de l\'authentification');
+            console.error('Auth check failed:', error);
+            localStorage.removeItem('token');
         } finally {
             setLoading(false);
         }
     };
 
-    const login = async (email, password) => {
+    const login = async (credentials) => {
         try {
-            setLoading(true);
             setError(null);
-
-            const result = await authService.login(email, password);
+            const response = await apiService.login(credentials);
             
-            if (result.success) {
-                setUser(result.data.user);
+            if (response.success) {
+                localStorage.setItem('token', response.token);
+                setUser(response.user);
                 return { success: true };
             } else {
-                setError(result.message);
-                return { success: false, message: result.message };
+                throw new Error(response.message);
             }
         } catch (error) {
-            const errorMessage = 'Erreur de connexion';
-            setError(errorMessage);
-            return { success: false, message: errorMessage };
-        } finally {
-            setLoading(false);
+            setError(error.message);
+            return { success: false, error: error.message };
         }
     };
 
     const register = async (userData) => {
         try {
-            setLoading(true);
             setError(null);
-
-            const result = await authService.register(userData);
+            const response = await apiService.register(userData);
             
-            if (result.success) {
-                setUser(result.data.user);
-                return { success: true };
+            if (response.success) {
+                return { success: true, message: response.message };
             } else {
-                setError(result.message);
-                return { success: false, message: result.message };
+                throw new Error(response.message);
             }
         } catch (error) {
-            const errorMessage = 'Erreur d\'inscription';
-            setError(errorMessage);
-            return { success: false, message: errorMessage };
-        } finally {
-            setLoading(false);
+            setError(error.message);
+            return { success: false, error: error.message };
         }
     };
 
     const logout = async () => {
         try {
-            setLoading(true);
-            await authService.logout();
-            setUser(null);
-            setError(null);
+            await apiService.logout();
         } catch (error) {
             console.error('Logout error:', error);
         } finally {
-            setLoading(false);
+            localStorage.removeItem('token');
+            setUser(null);
         }
     };
 
@@ -117,7 +92,11 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         isAuthenticated: !!user,
-        clearError: () => setError(null)
+        isDoctor: user?.role === 'doctor',
+        isPharmacist: user?.role === 'pharmacist',
+        isDriver: user?.role === 'driver',
+        isAdmin: user?.role === 'admin',
+        isPatient: user?.role === 'patient'
     };
 
     return (

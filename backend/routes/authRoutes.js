@@ -1,24 +1,15 @@
 const express = require('express');
-const { register, login, getProfile, logout } = require('../controllers/authController');
-const { authenticateToken } = require('../services/authMiddleware');
+const authController = require('../controllers/authController');
+const { authMiddleware } = require('../services/authMiddleware');
 
 const router = express.Router();
 
 // Routes publiques
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', authController.register);
+router.post('/login', authController.login);
 
 // Routes protégées
-router.get('/profile', authenticateToken, getProfile);
-router.post('/logout', authenticateToken, logout);
-
-// Route de test
-router.get('/test', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Auth routes are working',
-        timestamp: new Date().toISOString()
-    });
-});
+router.get('/profile', authMiddleware, authController.getProfile);
+router.post('/logout', authMiddleware, authController.logout);
 
 module.exports = router;

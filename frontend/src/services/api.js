@@ -1,189 +1,100 @@
-import axios from 'axios';
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Configuration axios
-const api = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 10000,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
-
-// Intercepteur pour ajouter le token d'authentification
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('mediflow_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
+class ApiService {
+    constructor() {
+        this.baseURL = API_BASE_URL;
     }
-);
 
-// Intercepteur pour gérer les réponses
-api.interceptors.response.use(
-    (response) => {
-        return response;
-    },
-    (error) => {
-        if (error.response?.status === 401) {
-            // Token expiré ou invalide
-            localStorage.removeItem('mediflow_token');
-            localStorage.removeItem('mediflow_user');
-            window.location.href = '/login';
-        }
-        return Promise.reject(error);
+    getAuthHeader() {
+        const token = localStorage.getItem('token');
+        return token ? { Authorization: `Bearer ${token}` } : {};
     }
-);
 
-// Services d'authentification
-export const authService = {
-    async login(email, password) {
+    async request(endpoint, options = {}) {
+        const url = `${this.baseURL}${endpoint}`;
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+                ...this.getAuthHeader(),
+                ...options.headers,
+            },
+            ...options,
+        };
+
         try {
-            const response = await api.post('/auth/login', { email, password });
-            
-            if (response.data.success) {
-                const { token, user } = response.data.data;
-                localStorage.setItem('mediflow_token', token);
-                localStorage.setItem('mediflow_user', JSON.stringify(user));
-                return { success: true, data: { token, user } };
+            const response = await fetch(url, config);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Une erreur est survenue');
             }
-            
-            return { success: false, message: response.data.message };
+
+            return data;
         } catch (error) {
-            console.error('Login error:', error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Erreur de connexion'
-            };
+            console.error('API Error:', error);
+            throw error;
         }
-    },
+    }
+
+    // Auth endpoints
+    async login(credentials) {
+        return this.request('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify(credentials),
+        });
+    }
 
     async register(userData) {
-        try {
-            const response = await api.post('/auth/register', userData);
-            
-            if (response.data.success) {
-                const { token, user } = response.data.data;
-                localStorage.setItem('mediflow_token', token);
-                localStorage.setItem('mediflow_user', JSON.stringify(user));
-                return { success: true, data: { token, user } };
-            }
-            
-            return { success: false, message: response.data.message };
-        } catch (error) {
-            console.error('Register error:', error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Erreur d\'inscription'
-            };
-        }
-    },
+        return this.request('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(userData),
+        });
+    }
 
     async getProfile() {
-        try {
-            const response = await api.get('/auth/profile');
-            return response.data;
-        } catch (error) {
-            console.error('Get profile error:', error);
-            throw error;
-        }
-    },
+        return this.request('/auth/profile');
+    }
 
     async logout() {
-        try {
-            await api.post('/auth/logout');
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            localStorage.removeItem('mediflow_token');
-            localStorage.removeItem('mediflow_user');
-        }
-    },
-
-    getCurrentUser() {
-        const userStr = localStorage.getItem('mediflow_user');
-        return userStr ? JSON.parse(userStr) : null;
-    },
-
-    getToken() {
-        return localStorage.getItem('mediflow_token');
-    },
-
-    isAuthenticated() {
-        return !!this.getToken();
+        return this.request('/auth/logout', {
+            method: 'POST',
+        });
     }
-};
 
-// Services pour les prescriptions
-export const prescriptionService = {
-    async getAll() {
-        try {
-            const response = await api.get('/prescriptions');
-            return response.data;
-        } catch (error) {
-            console.error('Get prescriptions error:', error);
-            throw error;
-        }
-    },
-
-    async getById(id) {
-        try {
-            const response = await api.get(`/prescriptions/${id}`);
-            return response.data;
-        } catch (error) {
-            console.error('Get prescription error:', error);
-            throw error;
-        }
-    },
-
-    async create(prescriptionData) {
-        try {
-            const response = await api.post('/prescriptions', prescriptionData);
-            return response.data;
-        } catch (error) {
-            console.error('Create prescription error:', error);
-            throw error;
-        }
-    },
-
-    async update(id, prescriptionData) {
-        try {
-            const response = await api.put(`/prescriptions/${id}`, prescriptionData);
-            return response.data;
-        } catch (error) {
-            console.error('Update prescription error:', error);
-            throw error;
-        }
-    },
-
-    async delete(id) {
-        try {
-            const response = await api.delete(`/prescriptions/${id}`);
-            return response.data;
-        } catch (error) {
-            console.error('Delete prescription error:', error);
-            throw error;
-        }
+    // Prescription endpoints
+    async getPrescriptions(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return this.request(`/prescriptions${queryString ? `?${queryString}` : ''}`);
     }
-};
 
-// Service de santé de l'API
-export const healthService = {
-    async check() {
-        try {
-            const response = await api.get('/health');
-            return response.data;
-        } catch (error) {
-            console.error('Health check error:', error);
-            throw error;
-        }
+    async getPrescription(id) {
+        return this.request(`/prescriptions/${id}`);
     }
-};
 
-export default api;
+    async createPrescription(prescriptionData) {
+        return this.request('/prescriptions', {
+            method: 'POST',
+            body: JSON.stringify(prescriptionData),
+        });
+    }
+
+    async updatePrescription(id, prescriptionData) {
+        return this.request(`/prescriptions/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(prescriptionData),
+        });
+    }
+
+    async deletePrescription(id) {
+        return this.request(`/prescriptions/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // Health check
+    async healthCheck() {
+        return this.request('/health');
+    }
+}
+
+export default new ApiService();
