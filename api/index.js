@@ -4,12 +4,6 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-// Import models and services
-const { initializeDatabase } = require('../backend/models/database');
-const User = require('../backend/models/User');
-const Prescription = require('../backend/models/Prescription');
-const { submitToHedera } = require('../backend/hedera/hederaService');
-
 const app = express();
 
 // Middleware
@@ -18,13 +12,48 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Initialize database
-initializeDatabase();
+// In-memory storage for demo (replace with database in production)
+let users = [
+  {
+    id: 1,
+    email: 'doctor@hospital.com',
+    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
+    role: 'doctor',
+    name: 'Dr. Martin Dubois'
+  },
+  {
+    id: 2,
+    email: 'pharmacist@pharmacy.com',
+    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
+    role: 'pharmacist',
+    name: 'Marie Pharmacienne'
+  },
+  {
+    id: 3,
+    email: 'patient@email.com',
+    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
+    role: 'patient',
+    name: 'Jean Patient'
+  }
+];
+
+let prescriptions = [
+  {
+    id: 1,
+    patientName: 'Jean Patient',
+    medication: 'Paracétamol 500mg',
+    dosage: '1 comprimé 3 fois par jour',
+    duration: '7 jours',
+    doctorName: 'Dr. Martin Dubois',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    hederaTransactionId: 'demo-tx-001'
+  }
+];
 
 // JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'mediflow-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Auth middleware
 const authenticateToken = (req, res, next) => {
@@ -32,22 +61,23 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ error: 'Token d\'accès requis' });
+    return res.status(401).json({ message: 'Token d\'accès requis' });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ error: 'Token invalide' });
+      return res.status(403).json({ message: 'Token invalide' });
     }
     req.user = user;
     next();
   });
 };
 
-// Health check
+// Routes
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
+    message: 'MediFlow API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
@@ -59,17 +89,17 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email et mot de passe requis' });
+      return res.status(400).json({ message: 'Email et mot de passe requis' });
     }
 
-    const user = await User.findByEmail(email);
+    const user = users.find(u => u.email === email);
     if (!user) {
-      return res.status(401).json({ error: 'Identifiants invalides' });
+      return res.status(401).json({ message: 'Identifiants invalides' });
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Identifiants invalides' });
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ message: 'Identifiants invalides' });
     }
 
     const token = jwt.sign(
@@ -83,74 +113,51 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Log audit to Hedera
-    try {
-      await submitToHedera({
-        type: 'USER_LOGIN',
-        userId: user.id,
-        email: user.email,
-        timestamp: new Date().toISOString(),
-        ip: req.ip
-      });
-    } catch (hederaError) {
-      console.warn('Hedera audit failed:', hederaError.message);
-    }
-
     res.json({
       token,
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
-        role: user.role
+        role: user.role,
+        name: user.name
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { email, password, name, role } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    if (!email || !password || !name || !role) {
+      return res.status(400).json({ message: 'Tous les champs sont requis' });
     }
 
-    const existingUser = await User.findByEmail(email);
+    const existingUser = users.find(u => u.email === email);
     if (existingUser) {
-      return res.status(409).json({ error: 'Cet email est déjà utilisé' });
+      return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = await User.create({
-      name,
+    const newUser = {
+      id: users.length + 1,
       email,
       password: hashedPassword,
-      role: role || 'patient'
-    });
+      name,
+      role
+    };
 
-    // Log audit to Hedera
-    try {
-      await submitToHedera({
-        type: 'USER_REGISTRATION',
-        userId: userId,
-        email: email,
-        role: role || 'patient',
-        timestamp: new Date().toISOString()
-      });
-    } catch (hederaError) {
-      console.warn('Hedera audit failed:', hederaError.message);
-    }
+    users.push(newUser);
 
     const token = jwt.sign(
       { 
-        id: userId, 
-        email, 
-        role: role || 'patient',
-        name 
+        id: newUser.id, 
+        email: newUser.email, 
+        role: newUser.role,
+        name: newUser.name 
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -159,146 +166,106 @@ app.post('/api/auth/register', async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        id: userId,
-        email,
-        name,
-        role: role || 'patient'
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+        name: newUser.name
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Register error:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
 // Prescription routes
-app.get('/api/prescriptions', authenticateToken, async (req, res) => {
+app.get('/api/prescriptions', authenticateToken, (req, res) => {
   try {
-    const prescriptions = await Prescription.findByUserId(req.user.id);
-    res.json(prescriptions);
+    let userPrescriptions = prescriptions;
+
+    // Filter based on user role
+    if (req.user.role === 'patient') {
+      userPrescriptions = prescriptions.filter(p => 
+        p.patientName.toLowerCase().includes(req.user.name.toLowerCase())
+      );
+    }
+
+    res.json(userPrescriptions);
   } catch (error) {
     console.error('Get prescriptions error:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-app.post('/api/prescriptions', authenticateToken, async (req, res) => {
+app.post('/api/prescriptions', authenticateToken, (req, res) => {
   try {
-    const { patientName, medication, dosage, frequency, duration, notes } = req.body;
+    const { patientName, medication, dosage, duration } = req.body;
 
-    if (!patientName || !medication || !dosage || !frequency || !duration) {
-      return res.status(400).json({ error: 'Tous les champs obligatoires doivent être remplis' });
+    if (!patientName || !medication || !dosage || !duration) {
+      return res.status(400).json({ message: 'Tous les champs sont requis' });
     }
 
-    const prescriptionId = await Prescription.create({
-      doctorId: req.user.id,
+    const newPrescription = {
+      id: prescriptions.length + 1,
       patientName,
       medication,
       dosage,
-      frequency,
       duration,
-      notes: notes || '',
-      status: 'active'
-    });
+      doctorName: req.user.name,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      hederaTransactionId: `demo-tx-${Date.now()}`
+    };
 
-    // Log audit to Hedera
-    try {
-      await submitToHedera({
-        type: 'PRESCRIPTION_CREATED',
-        prescriptionId: prescriptionId,
-        doctorId: req.user.id,
-        patientName: patientName,
-        medication: medication,
-        timestamp: new Date().toISOString()
-      });
-    } catch (hederaError) {
-      console.warn('Hedera audit failed:', hederaError.message);
-    }
-
-    const prescription = await Prescription.findById(prescriptionId);
-    res.status(201).json(prescription);
+    prescriptions.push(newPrescription);
+    res.status(201).json(newPrescription);
   } catch (error) {
     console.error('Create prescription error:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-app.put('/api/prescriptions/:id', authenticateToken, async (req, res) => {
+app.put('/api/prescriptions/:id', authenticateToken, (req, res) => {
   try {
     const { id } = req.params;
-    const { patientName, medication, dosage, frequency, duration, notes, status } = req.body;
+    const { patientName, medication, dosage, duration, status } = req.body;
 
-    const prescription = await Prescription.findById(id);
-    if (!prescription) {
-      return res.status(404).json({ error: 'Prescription non trouvée' });
+    const prescriptionIndex = prescriptions.findIndex(p => p.id === parseInt(id));
+    if (prescriptionIndex === -1) {
+      return res.status(404).json({ message: 'Prescription non trouvée' });
     }
 
-    if (prescription.doctorId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Accès non autorisé' });
-    }
+    prescriptions[prescriptionIndex] = {
+      ...prescriptions[prescriptionIndex],
+      patientName: patientName || prescriptions[prescriptionIndex].patientName,
+      medication: medication || prescriptions[prescriptionIndex].medication,
+      dosage: dosage || prescriptions[prescriptionIndex].dosage,
+      duration: duration || prescriptions[prescriptionIndex].duration,
+      status: status || prescriptions[prescriptionIndex].status,
+      updatedAt: new Date().toISOString()
+    };
 
-    await Prescription.update(id, {
-      patientName,
-      medication,
-      dosage,
-      frequency,
-      duration,
-      notes,
-      status
-    });
-
-    // Log audit to Hedera
-    try {
-      await submitToHedera({
-        type: 'PRESCRIPTION_UPDATED',
-        prescriptionId: id,
-        doctorId: req.user.id,
-        changes: { patientName, medication, dosage, frequency, duration, notes, status },
-        timestamp: new Date().toISOString()
-      });
-    } catch (hederaError) {
-      console.warn('Hedera audit failed:', hederaError.message);
-    }
-
-    const updatedPrescription = await Prescription.findById(id);
-    res.json(updatedPrescription);
+    res.json(prescriptions[prescriptionIndex]);
   } catch (error) {
     console.error('Update prescription error:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-app.delete('/api/prescriptions/:id', authenticateToken, async (req, res) => {
+app.delete('/api/prescriptions/:id', authenticateToken, (req, res) => {
   try {
     const { id } = req.params;
-
-    const prescription = await Prescription.findById(id);
-    if (!prescription) {
-      return res.status(404).json({ error: 'Prescription non trouvée' });
+    const prescriptionIndex = prescriptions.findIndex(p => p.id === parseInt(id));
+    
+    if (prescriptionIndex === -1) {
+      return res.status(404).json({ message: 'Prescription non trouvée' });
     }
 
-    if (prescription.doctorId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Accès non autorisé' });
-    }
-
-    await Prescription.delete(id);
-
-    // Log audit to Hedera
-    try {
-      await submitToHedera({
-        type: 'PRESCRIPTION_DELETED',
-        prescriptionId: id,
-        doctorId: req.user.id,
-        timestamp: new Date().toISOString()
-      });
-    } catch (hederaError) {
-      console.warn('Hedera audit failed:', hederaError.message);
-    }
-
+    prescriptions.splice(prescriptionIndex, 1);
     res.json({ message: 'Prescription supprimée avec succès' });
   } catch (error) {
     console.error('Delete prescription error:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
