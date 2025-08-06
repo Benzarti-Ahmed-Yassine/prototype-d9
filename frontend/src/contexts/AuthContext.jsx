@@ -42,7 +42,10 @@ export const AuthProvider = ({ children }) => {
     const login = async (credentials) => {
         try {
             setError(null);
-            const response = await apiService.login(credentials);
+            const response = await apiService.login({
+                email: credentials.email || credentials,
+                password: credentials.password || arguments[1]
+            });
             
             if (response.success) {
                 localStorage.setItem('token', response.token);
@@ -60,7 +63,13 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData) => {
         try {
             setError(null);
-            const response = await apiService.register(userData);
+            const response = await apiService.register({
+                email: userData.email,
+                password: userData.password,
+                firstName: userData.name?.split(' ')[0] || userData.firstName || userData.name,
+                lastName: userData.name?.split(' ').slice(1).join(' ') || userData.lastName || '',
+                role: userData.role
+            });
             
             if (response.success) {
                 return { success: true, message: response.message };
@@ -88,6 +97,7 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         error,
+        clearError: () => setError(null),
         login,
         register,
         logout,

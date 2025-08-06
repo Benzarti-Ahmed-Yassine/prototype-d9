@@ -28,9 +28,9 @@ const LoginPage = () => {
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        clearError();
+        if (clearError) clearError();
 
-        const result = await login(formData.email, formData.password);
+        const result = await login(formData);
         if (result.success) {
             navigate('/dashboard');
         }
@@ -38,7 +38,7 @@ const LoginPage = () => {
 
     const handleRegister = async (e) => {
         e.preventDefault();
-        clearError();
+        if (clearError) clearError();
 
         const result = await register(registerData);
         if (result.success) {
@@ -47,8 +47,8 @@ const LoginPage = () => {
     };
 
     const handleDemoLogin = async (account) => {
-        clearError();
-        const result = await login(account.email, account.password);
+        if (clearError) clearError();
+        const result = await login({ email: account.email, password: account.password });
         if (result.success) {
             navigate('/dashboard');
         }
