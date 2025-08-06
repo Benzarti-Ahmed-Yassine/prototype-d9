@@ -218,7 +218,7 @@ const Dashboard = () => {
                 <div className="px-4 py-6 sm:px-0">
                     <div className="border-4 border-dashed border-gray-200 rounded-lg p-6">
                         <h1 className="text-3xl font-bold text-gray-900">
-                            Bienvenue, {user?.name}
+                            Bienvenue, {user?.firstName} {user?.lastName}
                         </h1>
                         <p className="mt-2 text-gray-600">
                             Tableau de bord - {user?.role === 'doctor' ? 'Médecin' : 

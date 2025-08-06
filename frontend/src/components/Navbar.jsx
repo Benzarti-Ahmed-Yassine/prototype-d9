@@ -74,7 +74,7 @@ const Navbar = () => {
                         <div className="flex items-center space-x-3">
                             <div className="text-right">
                                 <div className="text-sm font-medium text-gray-900">
-                                    {user?.name}
+                                    {user?.firstName} {user?.lastName}
                                 </div>
                                 <div className="text-xs text-gray-500">
                                     {user?.email}
@@ -91,7 +91,7 @@ const Navbar = () => {
                         <div className="relative">
                             <div className="h-8 w-8 bg-indigo-600 rounded-full flex items-center justify-center">
                                 <span className="text-sm font-medium text-white">
-                                    {user?.name?.charAt(0).toUpperCase()}
+                                    {user?.firstName?.charAt(0).toUpperCase()}
                                 </span>
                             </div>
                         </div>

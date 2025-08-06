@@ -12,8 +12,10 @@ const CreatePrescription = () => {
 
     const [formData, setFormData] = useState({
         patientName: '',
+        patientAge: '',
         medication: '',
         dosage: '',
+        frequency: '',
         duration: '',
         instructions: ''
     });
