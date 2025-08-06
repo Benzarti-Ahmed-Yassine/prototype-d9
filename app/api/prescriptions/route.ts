@@ -1,131 +1,116 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mediflow-secret-key-2024'
-
-// Demo prescriptions data
-let prescriptions = [
+// Mock database for prescriptions
+let prescriptions: any[] = [
   {
     id: 1,
-    patientName: 'Sophie Patient',
-    medication: 'Paracétamol 500mg',
-    dosage: '500mg',
-    frequency: '3 fois par jour',
-    duration: '7 jours',
-    doctorName: 'Dr. Martin Dubois',
     doctorId: 1,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    instructions: 'Prendre après les repas'
-  },
-  {
-    id: 2,
+    doctorName: 'Dr. Martin Dubois',
     patientName: 'Jean Dupont',
-    medication: 'Amoxicilline 1g',
-    dosage: '1g',
-    frequency: '2 fois par jour',
-    duration: '10 jours',
-    doctorName: 'Dr. Martin Dubois',
-    doctorId: 1,
+    patientEmail: 'jean.dupont@email.com',
+    diagnosis: 'Infection respiratoire',
+    medications: [
+      {
+        name: 'Amoxicilline',
+        dosage: '500mg',
+        frequency: '3x/jour',
+        duration: '7 jours',
+        instructions: 'À prendre avec de la nourriture'
+      }
+    ],
     status: 'active',
     createdAt: new Date().toISOString(),
-    instructions: 'Traitement antibiotique complet'
+    hederaTransactionId: 'demo-tx-001'
   }
 ]
 
-let nextPrescriptionId = 3
-
 function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
-  const token = authHeader?.split(' ')[1]
-
-  if (!token) {
-    throw new Error('Token d\'accès requis')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
   }
 
+  const token = authHeader.substring(7)
   try {
-    return jwt.verify(token, JWT_SECRET) as any
+    return jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
   } catch (error) {
-    throw new Error('Token invalide')
+    return null
   }
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    const user = verifyToken(request)
-    
-    let userPrescriptions = prescriptions
-
-    // Filter based on user role
-    if (user.role === 'patient') {
-      userPrescriptions = prescriptions.filter(p => 
-        p.patientName.toLowerCase().includes(user.name.toLowerCase())
-      )
-    } else if (user.role === 'doctor') {
-      userPrescriptions = prescriptions.filter(p => p.doctorId === user.id)
-    }
-
-    return NextResponse.json(userPrescriptions)
-  } catch (error: any) {
+  const user = verifyToken(request)
+  if (!user) {
     return NextResponse.json(
-      { message: error.message || 'Erreur serveur' },
-      { status: error.message === 'Token d\'accès requis' ? 401 : 403 }
+      { message: 'Token invalide' },
+      { status: 401 }
     )
   }
+
+  // Filter prescriptions based on user role
+  let filteredPrescriptions = prescriptions
+  if (user.role === 'doctor') {
+    filteredPrescriptions = prescriptions.filter(p => p.doctorId === user.id)
+  } else if (user.role === 'patient') {
+    filteredPrescriptions = prescriptions.filter(p => p.patientEmail === user.email)
+  }
+
+  return NextResponse.json({
+    prescriptions: filteredPrescriptions
+  })
 }
 
 export async function POST(request: NextRequest) {
+  const user = verifyToken(request)
+  if (!user) {
+    return NextResponse.json(
+      { message: 'Token invalide' },
+      { status: 401 }
+    )
+  }
+
+  if (user.role !== 'doctor') {
+    return NextResponse.json(
+      { message: 'Seuls les médecins peuvent créer des prescriptions' },
+      { status: 403 }
+    )
+  }
+
   try {
-    const user = verifyToken(request)
-    
-    if (user.role !== 'doctor' && user.role !== 'admin') {
-      return NextResponse.json(
-        { message: 'Seuls les médecins peuvent créer des prescriptions' },
-        { status: 403 }
-      )
-    }
+    const { patientName, patientEmail, diagnosis, medications } = await request.json()
 
-    const { patientName, patientAge, medication, dosage, frequency, duration, instructions } = await request.json()
-
-    if (!patientName || !medication || !dosage || !frequency || !duration) {
+    if (!patientName || !patientEmail || !diagnosis || !medications || medications.length === 0) {
       return NextResponse.json(
-        { message: 'Tous les champs obligatoires doivent être remplis' },
+        { message: 'Tous les champs sont requis' },
         { status: 400 }
       )
     }
 
     const newPrescription = {
-      id: nextPrescriptionId++,
-      patientName,
-      patientAge,
-      medication,
-      dosage,
-      frequency,
-      duration,
-      instructions: instructions || '',
-      doctorName: user.name,
+      id: prescriptions.length + 1,
       doctorId: user.id,
+      doctorName: user.name,
+      patientName,
+      patientEmail,
+      diagnosis,
+      medications,
       status: 'active',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      hederaTransactionId: `demo-tx-${Date.now()}`
     }
 
     prescriptions.push(newPrescription)
 
-    // Simulate Hedera audit
-    console.log('Hedera Audit: Prescription created', {
-      prescriptionId: newPrescription.id,
-      doctorId: user.id,
-      patientName: patientName,
-      medication: medication,
-      timestamp: new Date().toISOString()
+    return NextResponse.json({
+      message: 'Prescription créée avec succès',
+      prescription: newPrescription
     })
-
-    return NextResponse.json(newPrescription, { status: 201 })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Create prescription error:', error)
     return NextResponse.json(
-      { message: error.message || 'Erreur serveur' },
-      { status: error.message === 'Token d\'accès requis' ? 401 : 500 }
+      { message: 'Erreur serveur' },
+      { status: 500 }
     )
   }
 }

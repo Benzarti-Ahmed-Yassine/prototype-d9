@@ -1,258 +1,365 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pill, Users, Truck, Activity } from 'lucide-react'
-import Link from 'next/link'
-
-interface Prescription {
-  id: number
-  patientName: string
-  medication: string
-  dosage: string
-  duration: string
-  doctorName: string
-  status: 'active' | 'completed' | 'cancelled'
-  createdAt: string
-}
+import { Heart, Shield, Truck, User, Settings, LogOut, Plus, FileText, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
-  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
-  useEffect(() => {
-    loadPrescriptions()
-  }, [])
+  if (!user) {
+    router.push('/login')
+    return null
+  }
 
-  const loadPrescriptions = async () => {
-    try {
-      const response = await fetch('/api/prescriptions', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setPrescriptions(data)
-      }
-    } catch (error) {
-      console.error('Error loading prescriptions:', error)
-    } finally {
-      setLoading(false)
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'doctor': return Heart
+      case 'pharmacist': return Shield
+      case 'driver': return Truck
+      case 'patient': return User
+      default: return Settings
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'completed': return 'bg-blue-100 text-blue-800'
-      case 'cancelled': return 'bg-red-100 text-red-800'
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'doctor': return 'bg-red-100 text-red-800'
+      case 'pharmacist': return 'bg-green-100 text-green-800'
+      case 'driver': return 'bg-blue-100 text-blue-800'
+      case 'patient': return 'bg-purple-100 text-purple-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active': return 'Active'
-      case 'completed': return 'Terminée'
-      case 'cancelled': return 'Annulée'
-      default: return status
-    }
-  }
-
-  const getRoleLabel = (role: string) => {
+  const getRoleName = (role: string) => {
     switch (role) {
       case 'doctor': return 'Médecin'
       case 'pharmacist': return 'Pharmacien'
       case 'driver': return 'Livreur'
       case 'patient': return 'Patient'
-      case 'admin': return 'Administrateur'
-      default: return role
+      default: return 'Utilisateur'
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
-      </div>
-    )
+  const RoleIcon = getRoleIcon(user.role)
+
+  const mockStats = {
+    doctor: {
+      prescriptions: 24,
+      patients: 156,
+      pending: 3,
+      completed: 21
+    },
+    pharmacist: {
+      prescriptions: 89,
+      dispensed: 76,
+      pending: 13,
+      inventory: 234
+    },
+    driver: {
+      deliveries: 45,
+      completed: 42,
+      pending: 3,
+      distance: 1250
+    },
+    patient: {
+      prescriptions: 8,
+      active: 2,
+      completed: 6,
+      appointments: 3
+    }
   }
+
+  const stats = mockStats[user.role as keyof typeof mockStats] || mockStats.patient
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                  <Pill className="h-5 w-5 text-white" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <h1 className="text-xl font-semibold text-gray-900">MediFlow</h1>
-              </div>
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-2xl font-bold text-gray-900">MediFlow</h1>
+              <Badge className={getRoleColor(user.role)}>
+                <RoleIcon className="w-4 h-4 mr-1" />
+                {getRoleName(user.role)}
+              </Badge>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                {user?.name} ({getRoleLabel(user?.role || '')})
-              </span>
-              <Button variant="outline" onClick={logout}>
+              <span className="text-sm text-gray-600">Bonjour, {user.name}</span>
+              <Button variant="outline" size="sm" onClick={logout}>
+                <LogOut className="w-4 h-4 mr-2" />
                 Déconnexion
               </Button>
             </div>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className="border-4 border-dashed border-gray-200 rounded-lg p-6">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Bienvenue, {user?.name}
-            </h1>
-            <p className="mt-2 text-gray-600">
-              Tableau de bord - {getRoleLabel(user?.role || '')}
-            </p>
-          </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            Tableau de bord {getRoleName(user.role)}
+          </h2>
+          <p className="text-gray-600">
+            Gérez vos activités et suivez vos performances
+          </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="px-4 sm:px-0 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Pill className="h-6 w-6 text-indigo-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Prescriptions</p>
-                    <p className="text-2xl font-semibold text-gray-900">{prescriptions.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {user.role === 'doctor' && (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Prescriptions</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.prescriptions}</div>
+                  <p className="text-xs text-muted-foreground">Ce mois</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Patients</CardTitle>
+                  <User className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.patients}</div>
+                  <p className="text-xs text-muted-foreground">Actifs</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">En attente</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.pending}</div>
+                  <p className="text-xs text-muted-foreground">À traiter</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Complétées</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.completed}</div>
+                  <p className="text-xs text-muted-foreground">Cette semaine</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Activity className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Actives</p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {prescriptions.filter(p => p.status === 'active').length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {user.role === 'pharmacist' && (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Prescriptions</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.prescriptions}</div>
+                  <p className="text-xs text-muted-foreground">Reçues</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Dispensées</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.dispensed}</div>
+                  <p className="text-xs text-muted-foreground">Ce mois</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">En attente</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.pending}</div>
+                  <p className="text-xs text-muted-foreground">À préparer</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Inventaire</CardTitle>
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.inventory}</div>
+                  <p className="text-xs text-muted-foreground">Médicaments</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Users className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Patients</p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {new Set(prescriptions.map(p => p.patientName)).size}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {user.role === 'driver' && (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Livraisons</CardTitle>
+                  <Truck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.deliveries}</div>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Complétées</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.completed}</div>
+                  <p className="text-xs text-muted-foreground">Ce mois</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">En cours</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.pending}</div>
+                  <p className="text-xs text-muted-foreground">À livrer</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Distance</CardTitle>
+                  <Truck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.distance} km</div>
+                  <p className="text-xs text-muted-foreground">Parcourue</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Truck className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Terminées</p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {prescriptions.filter(p => p.status === 'completed').length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {user.role === 'patient' && (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Prescriptions</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.prescriptions}</div>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Actives</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.active}</div>
+                  <p className="text-xs text-muted-foreground">En cours</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Terminées</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.completed}</div>
+                  <p className="text-xs text-muted-foreground">Complétées</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">RDV</CardTitle>
+                  <User className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.appointments}</div>
+                  <p className="text-xs text-muted-foreground">Prochains</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Actions */}
-        {user?.role === 'doctor' && (
-          <div className="px-4 sm:px-0 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions rapides</CardTitle>
-                <CardDescription>Gérez vos prescriptions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="/prescriptions/create">
-                  <Button className="inline-flex items-center">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouvelle prescription
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Prescriptions List */}
-        <div className="px-4 sm:px-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Prescriptions récentes</CardTitle>
-              <CardDescription>Liste des prescriptions dans le système</CardDescription>
+              <CardTitle>Actions rapides</CardTitle>
+              <CardDescription>
+                Accédez rapidement aux fonctionnalités principales
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {user.role === 'doctor' && (
+                <Button 
+                  className="w-full justify-start" 
+                  onClick={() => router.push('/prescriptions/create')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Créer une prescription
+                </Button>
+              )}
+              <Button variant="outline" className="w-full justify-start">
+                <FileText className="w-4 h-4 mr-2" />
+                Voir toutes les prescriptions
+              </Button>
+              <Button variant="outline" className="w-full justify-start">
+                <Settings className="w-4 h-4 mr-2" />
+                Paramètres du compte
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Activité récente</CardTitle>
+              <CardDescription>
+                Dernières actions sur votre compte
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {prescriptions.length === 0 ? (
-                <div className="text-center py-8">
-                  <Pill className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Aucune prescription trouvée</p>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Connexion réussie</p>
+                    <p className="text-xs text-gray-500">Il y a 2 minutes</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {prescriptions.map((prescription) => (
-                    <div key={prescription.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{prescription.medication}</h3>
-                          <p className="text-sm text-gray-500">
-                            Patient: {prescription.patientName} • Médecin: {prescription.doctorName}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {prescription.dosage} • {prescription.duration}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getStatusColor(prescription.status)}>
-                            {getStatusLabel(prescription.status)}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Prescription mise à jour</p>
+                    <p className="text-xs text-gray-500">Il y a 1 heure</p>
+                  </div>
                 </div>
-              )}
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Notification reçue</p>
+                    <p className="text-xs text-gray-500">Il y a 3 heures</p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

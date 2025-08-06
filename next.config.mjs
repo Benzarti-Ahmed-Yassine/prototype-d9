@@ -9,9 +9,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ['bcryptjs', 'jsonwebtoken']
-  }
 }
 
 export default nextConfig

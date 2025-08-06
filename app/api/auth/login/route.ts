@@ -1,47 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 
-// Demo users data
+// Mock database - in production, use a real database
 const users = [
   {
     id: 1,
+    name: 'Dr. Martin Dubois',
     email: 'doctor@hospital.com',
     password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
-    role: 'doctor',
-    name: 'Dr. Martin Dubois'
+    role: 'doctor'
   },
   {
     id: 2,
+    name: 'Marie Pharmacienne',
     email: 'pharmacist@pharmacy.com',
     password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
-    role: 'pharmacist',
-    name: 'Marie Pharmacienne'
+    role: 'pharmacist'
   },
   {
     id: 3,
+    name: 'Jean Livreur',
     email: 'driver@delivery.com',
     password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
-    role: 'driver',
-    name: 'Jean Livreur'
+    role: 'driver'
   },
   {
     id: 4,
+    name: 'Sophie Patient',
     email: 'patient@email.com',
     password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
-    role: 'patient',
-    name: 'Sophie Patient'
+    role: 'patient'
   },
   {
     id: 5,
+    name: 'Admin MediFlow',
     email: 'admin@mediflow.com',
     password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // demo123
-    role: 'admin',
-    name: 'Admin MediFlow'
+    role: 'admin'
   }
 ]
-
-const JWT_SECRET = process.env.JWT_SECRET || 'mediflow-secret-key-2024'
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,47 +52,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Find user
     const user = users.find(u => u.email === email)
     if (!user) {
       return NextResponse.json(
-        { message: 'Identifiants invalides' },
+        { message: 'Utilisateur non trouvé' },
         { status: 401 }
       )
     }
 
-    const validPassword = await bcrypt.compare(password, user.password)
-    if (!validPassword) {
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password)
+    if (!isValidPassword) {
       return NextResponse.json(
-        { message: 'Identifiants invalides' },
+        { message: 'Mot de passe incorrect' },
         { status: 401 }
       )
     }
 
+    // Generate JWT
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        email: user.email, 
-        role: user.role,
-        name: user.name 
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
       },
-      JWT_SECRET,
+      process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     )
 
-    // Simulate Hedera audit
-    console.log('Hedera Audit: User login', {
-      userId: user.id,
-      email: user.email,
-      timestamp: new Date().toISOString()
-    })
-
     return NextResponse.json({
+      message: 'Connexion réussie',
       token,
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     })
   } catch (error) {
